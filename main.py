@@ -8,15 +8,28 @@ import httpx
 import uvicorn
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-MINECRAFT_PATH = r"C:\Users\shaqu\AppData\Roaming\.minecraft"
+MINECRAFT_PATH = os.path.join(os.getenv("APPDATA"), ".minecraft")
 
+class UpdateRequest(BaseModel):
+    hashes: list[str]
+    loader: str
+    game_version: str
+
+app = fastapi.FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def index():
+    return FileResponse("static/index.html")
 
 def get_mods_folder(path: str = "mods"):
     return os.path.join(MINECRAFT_PATH, path)
 
 
-def read_manifest(jar_path) -> dict | None:
+def read_manifest(jar_path) -> dict:
     manifest_data = None
     fabric_json_data = None
     icon_data = None
@@ -32,43 +45,41 @@ def read_manifest(jar_path) -> dict | None:
                 error_message += "META-INF/MANIFEST.MF not found. "
 
             # 2. Try to find and read the fabric.mod.json
-            found_json = False
             for file_name in z.namelist():
                 if not file_name.endswith("fabric.mod.json"):
                     continue
-                found_json = True
+
+                # Parase fabric.mod.json
                 try:
                     raw = z.read(file_name).decode("utf-8-sig")
                     fabric_json_data = json.loads(raw)
-
-                    # 3. IF fabric.mod.json was found, try to get its icon
-                    if not fabric_json_data:
-                        return None
-                    if "icon" in fabric_json_data:
-                        return None
-
-                    icon_path = fabric_json_data.get("icon")
-                    try:
-                        # Read the icon's binary data
-                        with z.open(icon_path) as icon_file:
-                            icon_binary = icon_file.read()
-                            # Encode as Base64 string to send via JSON
-                            icon_data = base64.b64encode(icon_binary).decode("utf-8")
-
-                    except KeyError:
-                        error_message += f"Icon file '{icon_path}' not found in .jar. "
-                    except Exception as e:
-                        error_message += f"Error reading icon: {e}. "
-
-                except json.JSONDecodeError as e:
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
                     error_message += f"Failed to parse {file_name}: {e}. "
-                except UnicodeDecodeError as e:
-                    error_message += f"Failed to decode {file_name}: {e}. "
+                    break
+
+                # 3. IF fabric.mod.json was found, try to get its icon
+                if not isinstance(fabric_json_data, dict):
+                    error_message += "fabric.mod.json was empty or invalid. "
+                    break
+
+                icon_path = fabric_json_data.get("icon")
+                if not icon_path:
+                    break  # valid JSON, no icon — nothing more to do
+
+                # Read Icon
+                try:
+                    # Read the icon's binary data
+                    with z.open(icon_path) as icon_file:
+                        icon_binary = icon_file.read()
+                        # Encode as Base64 string to send via JSON
+                        icon_data = base64.b64encode(icon_binary).decode("utf-8")
+
+                except KeyError:
+                    error_message += f"Icon file '{icon_path}' not found in .jar. "
+                except Exception as e:
+                    error_message += f"Error reading icon: {e}. "
 
                 break
-
-            if not found_json and "MANIFEST.MF not found" not in error_message:
-                pass
 
     except zipfile.BadZipFile:
         error_message += "File is not a valid .jar (zip) file. "
@@ -78,8 +89,8 @@ def read_manifest(jar_path) -> dict | None:
     return {
         "manifest": manifest_data,
         "fabric_json": fabric_json_data,
-        "error": error_message.strip(),
         "icon_data": icon_data,
+        "error": error_message.strip(),
     }
 
 
@@ -93,7 +104,7 @@ def get_mods() -> list:
     return mods
 
 
-app = fastapi.FastAPI()
+
 
 
 @app.get("/api/mods")
@@ -124,7 +135,9 @@ async def get_root():
 
 
 @app.post("/api/check_updates")
-async def check_for_updates(body):
+async def check_for_updates(body: UpdateRequest):
+    MODRINTH_API_URL = "https://api.modrinth.com"
+
     """Checks Modrinth for updates based on file hashes."""
     if not body.hashes:
         return {}
@@ -172,6 +185,8 @@ async def check_for_updates(body):
         raise HTTPException(status_code=504, detail="Modrinth API timed out.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking updates: {e}")
+    
+
 
 
 if __name__ == "__main__":
