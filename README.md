@@ -1,49 +1,121 @@
-**ModHelper**
+# Moddy
 
-- **Purpose:**: A minimal helper for managing mod profiles and launching a mod-enabled application.
+> A minimal, no-frills helper for managing mod profiles and launching a mod-enabled application.
 
-**Overview**
-- **Repository:**: ModHelper — simple utilities to load and manage mod profiles and static assets.
-- **Contents:**: `main.py`, `profiles.py`, `static/index.html`, `LICENSE`.
+Moddy is designed to stay out of your way. It provides just enough structure to define, switch, and launch mod profiles—without pulling in heavy dependencies or complex frameworks.
 
-**Features**
-- **Profiles**: Manage named mod profiles via `profiles.py`.
-- **Launcher**: Entry point and orchestration via `main.py`.
-- **Static UI**: A simple static HTML in `static/index.html` for any lightweight UI needs.
+---
 
-**Requirements**
-- **Python:**: 3.8+ recommended.
+## ✨ Features
 
-**Quick Start**
-- **Install dependencies (if any):**: This project has no pinned dependencies. Create and activate a Python venv if desired:
+- **Profile Management** – Create, list, and switch between named mod profiles
+- **Simple Launcher** – Central entry point for loading profiles and starting the app
+- **Static UI Ready** – Includes a lightweight HTML file for previews or basic UI needs
+- **Zero Dependencies** – Uses only the Python standard library
 
-	`python -m venv .venv`
+---
 
-	`.
-	\.venv\Scripts\activate`  (Windows PowerShell)
+## 📁 Project Structure
 
-- **Run the main script:**
+```
+Moddy/
+├─ main.py              # Launcher and orchestration
+├─ profiles.py          # Mod profile logic
+├─ static/
+│  └─ index.html        # Minimal static UI
+└─ LICENSE
+```
 
-	`python main.py`
+---
 
-- **Run the profiles utility:**
+## 🚀 Getting Started
 
-	`python profiles.py`
+### Requirements
 
-**Usage**
-- **Profiles:**: `profiles.py` holds logic to create, list, and switch mod profiles. Inspect the file for available commands and examples.
-- **Static files:**: Serve or open `static/index.html` in a browser for any simple UI or preview.
+- **Python 3.8+** (recommended)
 
-**Development**
-- **Run locally:**: Use the commands in Quick Start. Edit `main.py` and `profiles.py` to extend functionality.
-- **Testing:**: No automated tests included. Add tests under a `tests/` folder and run them with your preferred test runner.
+### Optional: Virtual Environment
 
-**Contributing**
-- **Issues & PRs:**: Open issues or pull requests with improvements or bug fixes.
-- **Style:**: Keep changes small and focused; include short descriptions of behavior changes.
+```bash
+python -m venv .venv
+source .venv/bin/activate        # macOS / Linux
+.\.venv\Scripts\activate       # Windows (PowerShell)
+```
 
-**License**
-- See `LICENSE` for license details.
+### Run Moddy
 
-**Contact / Next Steps**
-- If you want, I can: add a `requirements.txt`, add examples for `profiles.py`, or create a minimal UI around `static/index.html`.
+```bash
+python main.py
+```
+
+### Run the Profiles Utility
+
+```bash
+python profiles.py
+```
+
+---
+
+## 🧩 Usage
+
+### Profiles
+
+All profile-related logic lives in **`profiles.py`**. It includes utilities to:
+
+- Create new mod profiles
+- List existing profiles
+- Switch the active profile
+
+Open the file directly to see available commands and example usage.
+
+### Static UI
+
+The **`static/index.html`** file can be opened directly in a browser or served by your own tooling. It’s intentionally minimal and meant as a starting point—not a full UI framework.
+
+---
+
+## 🛠 Development
+
+- Run scripts directly with Python (see Getting Started)
+- Extend functionality by editing `main.py` and `profiles.py`
+- No test suite is included by default
+
+### Testing (Optional)
+
+If you add tests, a common convention is:
+
+```
+Moddy/
+└─ tests/
+```
+
+Run them using your preferred test runner (e.g. `unittest`, `pytest`).
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome.
+
+- Open an issue for bugs or feature ideas
+- Submit focused pull requests with a clear description of changes
+- Keep scope small and behavior easy to understand
+
+---
+
+## 📄 License
+
+See the `LICENSE` file for details.
+
+---
+
+## 🔮 Next Steps
+
+Potential improvements you might want to add:
+
+- `requirements.txt` or `pyproject.toml`
+- Example commands and workflows for `profiles.py`
+- A small interactive UI built on top of `static/index.html`
+- Basic logging or config file support
+
+Moddy is intentionally minimal—extend it only as far as your project needs.
