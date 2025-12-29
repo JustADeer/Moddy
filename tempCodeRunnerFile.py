@@ -1,0 +1,1 @@
+os.path.join(os.getenv("APPDATA"), ".minecraft")

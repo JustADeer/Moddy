@@ -57,6 +57,58 @@ def create_profile(
 
     return profile_dir
 
+def save_profile_from_minecraft(profile_dir: Path, minecraft_dir: Path):
+    print("Saving to profile:", profile_dir)
+    mc_mods = minecraft_dir / "mods"
+    mc_config = minecraft_dir / "config"
+
+    profile_mods = profile_dir / "mods"
+    profile_config = profile_dir / "config"
+
+    if not mc_mods.exists():
+        raise FileNotFoundError("Minecraft mods folder does not exist")
+
+    # ---- Mods ----
+    if profile_mods.exists():
+        shutil.rmtree(profile_mods)
+
+    shutil.copytree(mc_mods, profile_mods)
+
+    # ---- Config ----
+    if mc_config.exists():
+        if profile_config.exists():
+            shutil.rmtree(profile_config)
+
+        shutil.copytree(mc_config, profile_config)
+
+def apply_profile(profile_dir: Path, minecraft_dir: Path):
+    """
+    Applies a mod profile to a Minecraft directory by copying
+    mods and config folders.
+    """
+    print("Applying profile:", profile_dir)
+    profile_mods = profile_dir / "mods"
+    profile_config = profile_dir / "config"
+
+    mc_mods = minecraft_dir / "mods"
+    mc_config = minecraft_dir / "config"
+
+    if not profile_mods.exists():
+        raise FileNotFoundError("Profile mods folder is missing")
+
+    # ---- Mods ----
+    if mc_mods.exists():
+        shutil.rmtree(mc_mods)
+
+    shutil.copytree(profile_mods, mc_mods)
+
+    # ---- Config ----
+    if profile_config.exists():
+        if mc_config.exists():
+            shutil.rmtree(mc_config)
+
+        shutil.copytree(profile_config, mc_config)
+
 def add_mod_to_profile(profile_dir: Path, mod_file: Path):
     """
     Copies a mod .jar file into the profile's mods folder.
@@ -91,5 +143,7 @@ def add_mod_to_profile(profile_dir: Path, mod_file: Path):
         with open(profile_json, "w", encoding="utf-8") as f:
             json.dump(profile_data, f, indent=4)
 
-if __name__ == "__main__":
-    add_mod_to_profile(get_app_data_dir() / "profiles" / "1.20.1 Forge", )
+
+
+# SAVING IS FOR COPYING FROM MINECRAFT FOLDER TO PROFILE AND DELETING THE ORIGINAL
+# APPLYING IS FOR COPYING FROM PROFILE TO MINECRAFT FOLDER AND DELETING THE ORIGINAL
