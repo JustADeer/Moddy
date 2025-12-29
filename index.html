@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Minecraft Mod Inspector</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            /* Simple transition for collapsible content */
+            .content-area {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease-out;
+            }
+            .content-area.open {
+                max-height: 1000px; /* Set to a large enough value */
+                transition: max-height 0.5s ease-in;
+            }
+        </style>
+    </head>
+    <body class="bg-gray-900 text-gray-100 font-sans min-h-screen p-4 md:p-8">
+        <div class="max-w-4xl mx-auto">
+            <header class="flex justify-between items-center mb-3">
+                <h1 class="text-4xl font-bold text-green-400">
+                    Moddy
+                    <p class="text-xl font-bold text-green-300/80">
+                        A Minecraft Mod Manager
+                    </p>
+                </h1>
+                <button
+                    id="refresh-button"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
+                >
+                    Refresh Mods
+                </button>
+            </header>
+
+            <div class="mb-2">
+                <input
+                    type="search"
+                    id="search-input"
+                    placeholder="Search mods by name, ID, or file name..."
+                    class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+            </div>
+
+            <div id="total-mods-indicaator" class="mb-2 text-sm text-gray-400">
+                Total Mods: 0
+            </div>
+
+            <div
+                id="loading-indicator"
+                class="text-center text-lg text-gray-400 my-8 hidden"
+            >
+                Loading mod data...
+            </div>
+
+            <div
+                id="error-message"
+                class="text-center text-lg text-red-400 my-8 hidden"
+            ></div>
+
+            <div
+                id="no-results"
+                class="text-center text-lg text-gray-400 my-8 hidden"
+            >
+                No mods match your search.
+            </div>
+
+            <div id="mods-container" class="space-y-4"></div>
+        </div>
+
+        <script>
+            const modsContainer = document.getElementById("mods-container");
+            const loadingIndicator =
+                document.getElementById("loading-indicator");
+            const errorMessage = document.getElementById("error-message");
+            const refreshButton = document.getElementById("refresh-button");
+            const searchInput = document.getElementById("search-input");
+            const noResultsMessage = document.getElementById("no-results");
+            const totalModsText = document.getElementById(
+                "total-mods-indicaator",
+            );
+
+            // Function to create an HTML card for a single mod
+            function createModCard(mod) {
+                const modJson = mod.fabric_json || {};
+                const modId = modJson.id || "N/A";
+                const modName = modJson.name || "Unknown Name";
+                const modVersion = modJson.version || "N/A";
+                const modDescription =
+                    modJson.description || "No description provided.";
+                const modAuthors = (modJson.authors || ["N/A"]).join(", ");
+                const modLicense = modJson.license || "N/A";
+
+                // --- Handle Icon ---
+                const iconSrc = mod.icon_data
+                    ? `data:image/png;base64,${mod.icon_data}`
+                    : null;
+                const iconHtml = iconSrc
+                    ? `<img src="${iconSrc}" alt="${modName} icon" class="w-16 h-16 rounded-md mr-4 object-cover flex-shrink-0">`
+                    : `<div class="w-16 h-16 rounded-md mr-4 bg-gray-700 flex items-center justify-center text-gray-500 text-3xl flex-shrink-0">?</div>`;
+
+                // --- Sanitize content for <pre> tag ---
+                const escapeHTML = (str) => {
+                    if (!str) return "";
+                    return str.replace(/[&<>"']/g, function (m) {
+                        return {
+                            "&": "&amp;",
+                            "<": "&lt;",
+                            ">": "&gt;",
+                            '"': "&quot;",
+                            "'": "&#39;",
+                        }[m];
+                    });
+                };
+
+                const manifestContent = escapeHTML(mod.manifest);
+                const jsonContent = mod.fabric_json
+                    ? escapeHTML(JSON.stringify(mod.fabric_json, null, 2))
+                    : "No fabric.mod.json found";
+
+                const card = document.createElement("div");
+                // Add 'mod-card' class for search filtering
+                card.className =
+                    "bg-gray-800 rounded-lg shadow-lg overflow-hidden mod-card";
+
+                card.innerHTML = `
+                <button class="w-full text-left p-4 hover:bg-gray-700 transition duration-200 focus:outline-none">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center min-w-0">
+                            ${iconHtml}
+                            <div class="min-w-0">
+                                <h2 class="text-xl font-semibold text-green-300 truncate" title="${escapeHTML(modName)}">${escapeHTML(modName)}</h2>
+                                <p class="text-sm text-gray-400 truncate" title="${escapeHTML(mod.file_name)}">${escapeHTML(mod.file_name)}</p>
+
+                                <p class="text-sm text-gray-300 mt-2 truncate" title="${escapeHTML(modDescription)}">${escapeHTML(modDescription)}</p>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    <span>ID: <b class="text-gray-400">${escapeHTML(modId)}</b></span> |
+                                    <span>v<b class="text-gray-400">${escapeHTML(modVersion)}</b></span> |
+                                    <span>By: <b class="text-gray-400">${escapeHTML(modAuthors)}</b></span> |
+                                    <span>License: <b class="text-gray-400">${escapeHTML(modLicense)}</b></span>
+                                </div>
+                                ${mod.error ? `<p class="text-sm text-red-400 mt-1">Error: ${escapeHTML(mod.error)}</p>` : ""}
+                            </div>
+                        </div>
+                        <span class="text-gray-500 text-2xl toggle-icon ml-4">+</span>
+                    </div>
+                </button>
+                <div class="content-area border-t border-gray-700">
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2 text-gray-300">fabric.mod.json</h3>
+                            <pre class="bg-gray-900 text-gray-300 p-3 rounded-md text-xs overflow-auto h-64">${jsonContent}</pre>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2 text-gray-300">MANIFEST.MF</h3>
+                            <pre class="bg-gray-900 text-gray-300 p-3 rounded-md text-xs overflow-auto h-64">${manifestContent}</pre>
+                        </div>
+                    </div>
+                </div>
+                `;
+
+                // Add click event listener for toggling
+                const button = card.querySelector("button");
+                const content = card.querySelector(".content-area");
+                const icon = card.querySelector(".toggle-icon");
+
+                button.addEventListener("click", () => {
+                    const isOpen = content.classList.toggle("open");
+                    icon.textContent = isOpen ? "-" : "+";
+                });
+
+                return card;
+            }
+
+            // --- Search Function ---
+            function filterMods() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const cards = document.querySelectorAll(".mod-card");
+                let visibleCount = 0;
+
+                cards.forEach((card) => {
+                    // Check textContent for a match
+                    const cardText = card.textContent.toLowerCase();
+                    if (cardText.includes(searchTerm)) {
+                        card.style.display = "block";
+                        visibleCount++;
+                    } else {
+                        card.style.display = "none";
+                    }
+                });
+
+                // Show 'no results' message if needed
+                if (visibleCount === 0 && cards.length > 0) {
+                    noResultsMessage.classList.remove("hidden");
+                } else {
+                    noResultsMessage.classList.add("hidden");
+                }
+
+                totalModsText.textContent = `Total Mods: ${visibleCount}`;
+            }
+
+            // Function to fetch all mods from the API
+            async function fetchMods() {
+                modsContainer.innerHTML = ""; // Clear existing mods
+                errorMessage.classList.add("hidden");
+                noResultsMessage.classList.add("hidden");
+                loadingIndicator.classList.remove("hidden");
+                refreshButton.disabled = true;
+                refreshButton.classList.add("opacity-50", "cursor-not-allowed");
+                searchInput.disabled = true;
+                searchInput.value = ""; // Clear search on refresh
+
+                try {
+                    const response = await fetch("/api/mods");
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP error! status: ${response.status}`,
+                        );
+                    }
+                    const mods = await response.json();
+
+                    if (mods.length === 0) {
+                        modsContainer.innerHTML =
+                            '<p class="text-center text-gray-400">No .jar mods found in the mods folder.</p>';
+                    } else {
+                        totalModsText.textContent = `Total Mods: ${mods.length}`;
+
+                        // Sort mods by name (case-insensitive)
+                        mods.sort((a, b) => {
+                            const nameA = (
+                                a.fabric_json?.name || "Unknown"
+                            ).toLowerCase();
+                            const nameB = (
+                                b.fabric_json?.name || "Unknown"
+                            ).toLowerCase();
+                            return nameA.localeCompare(nameB);
+                        });
+
+                        mods.forEach((mod) => {
+                            const card = createModCard(mod);
+                            modsContainer.appendChild(card);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch mods:", error);
+                    errorMessage.textContent = `Failed to load mods: ${error.message}`;
+                    errorMessage.classList.remove("hidden");
+                } finally {
+                    loadingIndicator.classList.add("hidden");
+                    refreshButton.disabled = false;
+                    refreshButton.classList.remove(
+                        "opacity-50",
+                        "cursor-not-allowed",
+                    );
+                    searchInput.disabled = false;
+                }
+            }
+
+            // --- Event Listeners ---
+            refreshButton.addEventListener("click", fetchMods);
+            searchInput.addEventListener("input", filterMods);
+
+            // Initial fetch on page load
+            fetchMods();
+        </script>
+    </body>
+</html>
